@@ -23,18 +23,28 @@ OpenIDP SaaS is a production-grade, self-hostable IDP platform comparable to ABB
 # 1. Clone and configure
 git clone https://github.com/your-org/openidp-saas
 cd openidp-saas
-cp .env.example .env  # fill in your values
+cp .env.example .env  # fill in your values (see docs/configuration.md)
 
-# 2. Start all services
-docker compose -f infra/docker/docker-compose.dev.yml up
+# 2. Download OCR models (one-time, ~25 MB)
+docker run --rm \
+  -v openidp_ocr_models:/app/models \
+  -v "$(pwd)/scripts:/scripts" \
+  python:3.12-slim \
+  bash /scripts/download_models.sh /app/models
 
-# 3. Run database migrations (in another terminal)
-cd apps/api
-uv run alembic upgrade head
+# 3. Start all services
+docker compose -f infra/docker/docker-compose.dev.yml up --build
 
-# 4. Open the app
+# 4. Run database migrations (in another terminal)
+docker compose -f infra/docker/docker-compose.dev.yml exec api \
+  uv run alembic upgrade head
+
+# 5. Open the app
 open http://localhost:3000
 ```
+
+> **Note:** Step 2 is required before first use. The OCR models are ~25 MB and
+> are stored in a persistent Docker volume. You only need to run this once.
 
 ## Architecture
 
@@ -72,11 +82,20 @@ See [`docs/architecture/`](docs/architecture/) for C4 diagrams and pipeline docu
 | Persist + events | ≤ 5s | Bulk insert + WebSocket fan-out |
 | **Total** | **≤ 55s** | |
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Installation](docs/installation.md) | Prerequisites, Docker Compose setup, OCR model download, native dev |
+| [Configuration](docs/configuration.md) | All environment variables with defaults and security notes |
+| [Usage](docs/usage.md) | App walkthrough — upload, review workspace, document types, API keys |
+| [Architecture](docs/architecture/overview.md) | C4 diagrams, pipeline stages, multi-tenancy design, DB schema |
+| [Kubernetes / Helm](docs/deployment/kubernetes.md) | Production deployment, secrets, OCR model init Job, GPU scaling |
+
 ## Deployment
 
-- **Docker Compose**: `infra/docker/docker-compose.dev.yml`
-- **Kubernetes + Helm**: `infra/helm/openidp/`
-- See [`docs/deployment/`](docs/deployment/) for detailed guides
+- **Docker Compose (dev)**: `infra/docker/docker-compose.dev.yml`
+- **Kubernetes + Helm**: `infra/helm/openidp/` — see [Kubernetes guide](docs/deployment/kubernetes.md)
 
 ## License
 
