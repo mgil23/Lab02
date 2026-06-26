@@ -139,9 +139,10 @@ def _determine_validation_status(field_data: dict) -> str:
     confidence = field_data.get("confidence")
     if confidence is None:
         return "pending"
-    if float(confidence) >= 0.85:
+    conf = float(confidence)
+    if conf >= settings.extraction_confidence_valid:
         return "valid"
-    if float(confidence) >= 0.60:
+    if conf >= settings.extraction_confidence_review:
         return "review"
     return "flagged"
 

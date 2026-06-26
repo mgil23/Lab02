@@ -4,12 +4,13 @@ PII Sanitizer using Microsoft Presidio.
 Provides reversible anonymization: sanitize() → (anonymized_text, token_map)
 Calling restore() recovers the original PII values in extracted results.
 """
+import os
 import re
 import secrets
 from typing import Any
 from .reversible_map import generate_token
 
-_PII_ENTITIES = [
+_DEFAULT_PII_ENTITIES = [
     "PERSON",
     "EMAIL_ADDRESS",
     "PHONE_NUMBER",
@@ -24,9 +25,26 @@ _PII_ENTITIES = [
 ]
 
 
+def _load_entities_from_env() -> list[str]:
+    raw = os.environ.get("PII_ENTITIES", "")
+    if raw.strip():
+        return [e.strip() for e in raw.split(",") if e.strip()]
+    return _DEFAULT_PII_ENTITIES
+
+
 class PiiSanitizer:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        entities: list[str] | None = None,
+        language: str | None = None,
+        min_score: float | None = None,
+    ) -> None:
         self._session_salt = secrets.token_hex(8)
+        self._entities = entities if entities is not None else _load_entities_from_env()
+        self._language = language or os.environ.get("PII_LANGUAGE", "en")
+        self._min_score = min_score if min_score is not None else float(
+            os.environ.get("PII_MIN_SCORE", "0.5")
+        )
         self._analyzer = None
         self._anonymizer = None
 
@@ -52,7 +70,12 @@ class PiiSanitizer:
 
         try:
             analyzer = self._get_analyzer()
-            results = analyzer.analyze(text=text, entities=_PII_ENTITIES, language="en")
+            results = analyzer.analyze(
+                text=text,
+                entities=self._entities,
+                language=self._language,
+                score_threshold=self._min_score,
+            )
         except Exception:
             return text, {}
 

@@ -101,8 +101,8 @@ class ExtractionAgent:
             model = BedrockModel(
                 model_id=os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-6"),
                 region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
-                temperature=0.0,
-                max_tokens=4096,
+                temperature=float(os.environ.get("EXTRACTION_TEMPERATURE", "0.0")),
+                max_tokens=int(os.environ.get("EXTRACTION_MAX_TOKENS", "4096")),
             )
             agent = Agent(
                 model=model,

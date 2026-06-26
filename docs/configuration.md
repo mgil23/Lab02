@@ -157,3 +157,47 @@ Rate limiting uses a Redis sliding-window counter per (IP, tenant). The defaults
 | `/auth/*` | 20 req/min |
 | `POST /documents` (upload) | 60 req/min |
 | All other API routes | 300 req/min |
+
+---
+
+## PII Sanitization
+
+These are **platform-wide defaults**. Each tenant can override them from the **Settings → PII / Privacy** page in the frontend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PII_ENABLED` | `true` | Master switch. When `false`, document text is sent to AI models without redaction. |
+| `PII_LANGUAGE` | `en` | Language hint for Presidio entity detection (`en`, `es`, `de`, `fr`, `it`, `pt`). |
+| `PII_MIN_SCORE` | `0.5` | Minimum Presidio confidence score (0.0–1.0) to trigger redaction. Lower = more aggressive. |
+| `PII_ENTITIES` | (all 11) | Comma-separated list of entity types to detect. Full list: `PERSON,EMAIL_ADDRESS,PHONE_NUMBER,US_SSN,CREDIT_CARD,IBAN_CODE,MEDICAL_LICENSE,DATE_TIME,IP_ADDRESS,URL,NRP`. |
+
+> PII sanitization uses **reversible tokenization** — entities are replaced with stable tokens (e.g. `[PERSON_a1b2c3d4]`) before any LLM call, and the original values are automatically restored in the extracted results. Document text stored in PostgreSQL always contains the original values.
+
+---
+
+## Extraction / AI Thresholds
+
+These are **platform-wide defaults**. Each tenant can override them from the **Settings → Extraction** page in the frontend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EXTRACTION_CONFIDENCE_VALID` | `0.85` | Fields ≥ this confidence show green ✓ and are auto-accepted. |
+| `EXTRACTION_CONFIDENCE_REVIEW` | `0.65` | Fields between this and `VALID` show yellow ⚠ (soft warning). |
+| `EXTRACTION_CONFIDENCE_FLAG` | `0.70` | Fields below this are flagged for mandatory human review (red ✗). |
+| `EXTRACTION_TEMPERATURE` | `0.0` | Sampling temperature for Bedrock model (0 = fully deterministic). |
+| `EXTRACTION_MAX_TOKENS` | `4096` | Maximum output tokens per extraction call. |
+
+> Threshold hierarchy must satisfy: `FLAG ≤ REVIEW ≤ VALID`.
+
+---
+
+## Pipeline Limits
+
+These are **platform-wide defaults**. Each tenant can override them from the **Settings → Pipeline** page in the frontend.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PIPELINE_MAX_FILE_SIZE_MB` | `100` | Uploads larger than this (in MB) are rejected with HTTP 413. |
+| `PIPELINE_MAX_PAGES` | `500` | Documents with more pages are rejected at ingest. |
+| `PIPELINE_TIMEOUT_SECONDS` | `120` | Maximum total pipeline duration before the document is marked `failed`. |
+| `PIPELINE_OCR_WORKERS` | `4` | Number of parallel `ProcessPoolExecutor` workers for PaddleOCR. Match to CPU core count. |

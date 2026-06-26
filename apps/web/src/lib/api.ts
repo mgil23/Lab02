@@ -179,3 +179,93 @@ export async function fetchDocumentType(
 ): Promise<DocumentType> {
   return apiClient.get(`/${tenant}/document-types/${slug}`);
 }
+
+// ── Platform settings ──────────────────────────────────────────────────────
+
+export interface PiiSettings {
+  enabled: boolean;
+  language: string;
+  min_score: number;
+  entities: string[];
+}
+
+export interface ExtractionSettings {
+  confidence_valid: number;
+  confidence_review: number;
+  confidence_flag: number;
+  temperature: number;
+  max_tokens: number;
+}
+
+export interface PipelineSettings {
+  max_file_size_mb: number;
+  max_pages: number;
+  timeout_seconds: number;
+  ocr_workers: number;
+}
+
+export interface PlatformSettings {
+  pii: PiiSettings;
+  extraction: ExtractionSettings;
+  pipeline: PipelineSettings;
+  available_pii_entities: string[];
+}
+
+export interface PlatformSettingsPatch {
+  pii?: Partial<PiiSettings>;
+  extraction?: Partial<ExtractionSettings>;
+  pipeline?: Partial<PipelineSettings>;
+}
+
+export async function fetchPlatformSettings(tenant: string): Promise<PlatformSettings> {
+  return apiClient.get(`/${tenant}/settings/platform`);
+}
+
+export async function updatePlatformSettings(
+  tenant: string,
+  body: PlatformSettingsPatch
+): Promise<PlatformSettings> {
+  return apiClient.patch(`/${tenant}/settings/platform`, body);
+}
+
+export async function resetPlatformSettings(tenant: string): Promise<void> {
+  return apiClient.delete(`/${tenant}/settings/platform`);
+}
+
+// ── Webhooks ───────────────────────────────────────────────────────────────
+
+export interface WebhookRecord {
+  id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WebhookCreateResponse {
+  webhook: WebhookRecord;
+  secret: string;
+}
+
+export async function fetchWebhooks(tenant: string): Promise<WebhookRecord[]> {
+  return apiClient.get(`/${tenant}/webhooks`);
+}
+
+export async function createWebhook(
+  tenant: string,
+  body: { url: string; events: string[] }
+): Promise<WebhookCreateResponse> {
+  return apiClient.post(`/${tenant}/webhooks`, body);
+}
+
+export async function toggleWebhook(
+  tenant: string,
+  id: string,
+  is_active: boolean
+): Promise<WebhookRecord> {
+  return apiClient.patch(`/${tenant}/webhooks/${id}`, { is_active });
+}
+
+export async function deleteWebhook(tenant: string, id: string): Promise<void> {
+  return apiClient.delete(`/${tenant}/webhooks/${id}`);
+}

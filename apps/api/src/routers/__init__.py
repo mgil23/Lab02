@@ -1,4 +1,4 @@
-from . import auth, documents, extraction, document_types, billing, api_keys, storage, playground, ws
+from . import auth, documents, extraction, document_types, billing, api_keys, storage, playground, ws, tenant_settings, webhooks
 
 __all__ = [
     "auth",
@@ -10,4 +10,6 @@ __all__ = [
     "storage",
     "playground",
     "ws",
+    "tenant_settings",
+    "webhooks",
 ]

@@ -3,6 +3,20 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_DEFAULT_PII_ENTITIES = [
+    "PERSON",
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER",
+    "US_SSN",
+    "CREDIT_CARD",
+    "IBAN_CODE",
+    "MEDICAL_LICENSE",
+    "DATE_TIME",
+    "IP_ADDRESS",
+    "URL",
+    "NRP",
+]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -55,11 +69,42 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_requests_per_minute: int = 1000
 
+    # ── PII Sanitization ──────────────────────────────────────────────────────
+    pii_enabled: bool = True
+    pii_language: str = "en"
+    # Minimum Presidio confidence score to trigger redaction (0.0–1.0)
+    pii_min_score: float = 0.5
+    # Comma-separated list of entity types to detect
+    pii_entities: list[str] = _DEFAULT_PII_ENTITIES
+
+    # ── Extraction / AI ───────────────────────────────────────────────────────
+    # Confidence >= this → auto-accepted green check
+    extraction_confidence_valid: float = 0.85
+    # Confidence >= this but < valid → yellow warning
+    extraction_confidence_review: float = 0.65
+    # Confidence < this → flagged for mandatory human review
+    extraction_confidence_flag: float = 0.7
+    extraction_temperature: float = 0.0
+    extraction_max_tokens: int = 4096
+
+    # ── Pipeline ──────────────────────────────────────────────────────────────
+    pipeline_max_file_size_mb: int = 100
+    pipeline_max_pages: int = 500
+    pipeline_timeout_seconds: int = 120
+    pipeline_ocr_workers: int = 4
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
             return [o.strip() for o in v.split(",")]
+        return v
+
+    @field_validator("pii_entities", mode="before")
+    @classmethod
+    def parse_entities(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return [e.strip() for e in v.split(",") if e.strip()]
         return v
 
 

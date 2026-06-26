@@ -12,7 +12,7 @@ from .core.middleware import (
     MetricsMiddleware,
     SecurityHeadersMiddleware,
 )
-from .routers import auth, documents, extraction, document_types, billing, api_keys, storage, playground, ws
+from .routers import auth, documents, extraction, document_types, billing, api_keys, storage, playground, ws, tenant_settings, webhooks
 from .routers.billing import webhook_router
 from .database import engine
 
@@ -58,6 +58,8 @@ app.include_router(webhook_router, prefix="/api/v1")  # Stripe webhook at fixed 
 app.include_router(api_keys.router, prefix="/api/v1")
 app.include_router(storage.router, prefix="/api/v1")
 app.include_router(playground.router, prefix="/api/v1")
+app.include_router(tenant_settings.router, prefix="/api/v1")
+app.include_router(webhooks.router, prefix="/api/v1")
 app.include_router(ws.router)
 
 # Prometheus metrics endpoint

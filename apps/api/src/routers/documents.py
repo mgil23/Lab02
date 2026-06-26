@@ -25,10 +25,15 @@ from ..schemas.document import (
 from ..services.document_service import DocumentService
 from ..services.storage_service import StorageService
 
+from ..config import settings as _cfg
+
 router = APIRouter(prefix="/{tenant_slug}/documents", tags=["documents"])
 
-_MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
 _MAX_PAGE_SIZE = 100
+
+
+def _max_file_bytes() -> int:
+    return _cfg.pipeline_max_file_size_mb * 1024 * 1024
 
 
 @router.post("", response_model=DocumentRead, status_code=status.HTTP_202_ACCEPTED)
@@ -42,8 +47,12 @@ async def upload_document(
     if file.content_type not in ("application/pdf",):
         raise HTTPException(status_code=415, detail="Only PDF files are accepted")
     contents = await file.read()
-    if len(contents) > _MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File too large (max 100 MB)")
+    max_bytes = _max_file_bytes()
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {_cfg.pipeline_max_file_size_mb} MB)",
+        )
 
     storage = StorageService()
     doc_service = DocumentService(db, storage)
@@ -285,14 +294,25 @@ async def chat_with_document(
         from strands.models import BedrockModel
         from ..config import settings
 
+        try:
+            from pii_sanitizer.sanitizer import PiiSanitizer
+            _pii = PiiSanitizer()
+            sanitized_context, ctx_token_map = _pii.sanitize(document_context)
+            sanitized_question, q_token_map = _pii.sanitize(body.question)
+            token_map = {**ctx_token_map, **q_token_map}
+        except Exception:
+            sanitized_context = document_context
+            sanitized_question = body.question
+            token_map = {}
+
         history_text = "\n".join(
             f"{m.role.upper()}: {m.content}" for m in body.history[-6:]
         )
         prompt = (
             f"You are an assistant helping review an extracted document.\n\n"
-            f"DOCUMENT CONTEXT:\n{document_context}\n\n"
+            f"DOCUMENT CONTEXT:\n{sanitized_context}\n\n"
             f"{'CONVERSATION HISTORY:\\n' + history_text + chr(10) + chr(10) if history_text else ''}"
-            f"USER QUESTION: {body.question}\n\n"
+            f"USER QUESTION: {sanitized_question}\n\n"
             f"Answer based on the document context. Be concise and accurate."
         )
 
@@ -305,7 +325,14 @@ async def chat_with_document(
             ),
         )
         raw = await agent.run_async(prompt)
-        answer = str(raw) if raw else "I couldn't find an answer in this document."
+        raw_answer = str(raw) if raw else "I couldn't find an answer in this document."
+
+        # Restore PII tokens in the answer
+        if token_map:
+            answer = _pii.restore(raw_answer, token_map)  # type: ignore[arg-type]
+        else:
+            answer = raw_answer
+
     except Exception:
         # Graceful fallback when Strands/Bedrock unavailable
         answer = (
