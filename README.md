@@ -84,8 +84,9 @@ See [`docs/architecture/`](docs/architecture/) for C4 diagrams and pipeline docu
 
 ## Documentation
 
-| Guide | Description |
-|-------|-------------|
+| Guía / Guide | Descripción |
+|--------------|-------------|
+| [**Manual de usuario** (ES)](docs/manual-de-usuario.md) | Guía completa para usuarios finales — subir documentos, revisar extracciones, configurar esquemas |
 | [Installation](docs/installation.md) | Prerequisites, Docker Compose setup, OCR model download, native dev |
 | [Configuration](docs/configuration.md) | All environment variables with defaults and security notes |
 | [Usage](docs/usage.md) | App walkthrough — upload, review workspace, document types, API keys |
