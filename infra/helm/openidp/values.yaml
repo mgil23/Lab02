@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+global:
+  image:
+    registry: ghcr.io
+    pullPolicy: IfNotPresent
+
+api:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/openidp/openidp-api
+    tag: latest
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 65
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    ENVIRONMENT: production
+    LOG_LEVEL: INFO
+
+worker:
+  replicaCount: 3
+  image:
+    repository: ghcr.io/openidp/openidp-api
+    tag: latest
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+
+ocrEngine:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/openidp/openidp-ocr-engine
+    tag: latest
+    target: cpu
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 60
+  gpu:
+    enabled: false
+    nodeSelector: {}
+    tolerations: []
+
+web:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/openidp/openidp-web
+    tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  service:
+    type: ClusterIP
+    port: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+  hosts:
+    - host: openidp.example.com
+      paths:
+        - path: /api
+          service: api
+        - path: /ws
+          service: api
+        - path: /
+          service: web
+  tls:
+    - secretName: openidp-tls
+      hosts:
+        - openidp.example.com
+
+postgresql:
+  external:
+    enabled: false
+    host: ""
+    port: 5432
+    database: openidp
+    secretName: ""
+  internal:
+    enabled: true
+    image: postgres:16-alpine
+    persistence:
+      size: 20Gi
+
+redis:
+  external:
+    enabled: false
+    host: ""
+    port: 6379
+    secretName: ""
+  internal:
+    enabled: true
+    image: redis:7-alpine
+    persistence:
+      size: 5Gi
+
+minio:
+  external:
+    enabled: false
+    endpoint: ""
+    secretName: ""
+  internal:
+    enabled: true
+    persistence:
+      size: 100Gi
+
+secrets:
+  jwt: ""
+  postgresql: ""
+  redis: ""
+  minio: ""
+  stripe: ""
+  aws: ""
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: false
+  namespace: monitoring

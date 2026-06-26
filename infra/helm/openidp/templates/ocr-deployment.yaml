@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openidp.fullname" . }}-ocr-engine
+  labels:
+    {{- include "openidp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ocr-engine
+spec:
+  replicas: {{ .Values.ocrEngine.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openidp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ocr-engine
+  template:
+    metadata:
+      labels:
+        {{- include "openidp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ocr-engine
+    spec:
+      {{- if .Values.ocrEngine.gpu.enabled }}
+      nodeSelector:
+        {{- toYaml .Values.ocrEngine.gpu.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.ocrEngine.gpu.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ocr-engine
+          image: "{{ .Values.ocrEngine.image.repository }}:{{ .Values.ocrEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: 8001
+          {{- if .Values.ocrEngine.gpu.enabled }}
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+            {{- toYaml .Values.ocrEngine.resources | nindent 12 }}
+          {{- else }}
+          resources:
+            {{- toYaml .Values.ocrEngine.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: models
+              mountPath: /app/models
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "openidp.fullname" . }}-ocr-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openidp.fullname" . }}-ocr-engine
+  labels:
+    {{- include "openidp.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8001
+      targetPort: 8001
+  selector:
+    {{- include "openidp.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ocr-engine
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "openidp.fullname" . }}-ocr-models
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi

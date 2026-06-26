@@ -1,0 +1,18 @@
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "packages/ocr-engine",
+    "packages/strands-agents",
+    "packages/pii-sanitizer",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "I", "N", "UP", "ANN", "ASYNC", "S", "T20"]
+ignore = ["ANN101", "ANN102", "S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

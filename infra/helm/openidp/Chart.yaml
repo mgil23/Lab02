@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+apiVersion: v2
+name: openidp
+description: OpenIDP SaaS — Open-source Intelligent Document Processing Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - idp
+  - document-processing
+  - ocr
+  - extraction
+home: https://github.com/openidp/openidp-saas
+maintainers:
+  - name: OpenIDP Team
+    email: team@openidp.io

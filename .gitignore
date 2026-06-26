@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.Python
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
+
+# Node.js
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+out/
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+*.log
+
+# Models (large binary files)
+packages/ocr-engine/src/ocr_engine/models/*.onnx
+packages/ocr-engine/src/ocr_engine/models/*.pdmodel
+packages/ocr-engine/src/ocr_engine/models/*.pdiparams
+
+# MinIO local data
+.minio/
