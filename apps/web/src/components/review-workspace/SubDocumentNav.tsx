@@ -33,7 +33,7 @@ export function SubDocumentNav({ subDocs, activeId, onSelect }: Props) {
             </span>
           )}
           <span className="opacity-60">
-            pp. {s.page_range_start}–{s.page_range_end}
+            pp. {s.page_start}–{s.page_end}
           </span>
         </button>
       ))}

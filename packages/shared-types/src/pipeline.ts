@@ -4,6 +4,7 @@ export type PipelineEventType =
   | "stage_progress"
   | "field_updated"
   | "stage_complete"
+  | "pipeline_failed"
   | "ping";
 
 export interface StageProgressEvent {
@@ -24,8 +25,19 @@ export interface FieldUpdatedEvent {
   timestamp: string;
 }
 
+export interface PipelineFailedEvent {
+  type: "pipeline_failed";
+  error: string;
+  stage: string;
+  timestamp: string;
+}
+
 export interface PingEvent {
   type: "ping";
 }
 
-export type PipelineEvent = StageProgressEvent | FieldUpdatedEvent | PingEvent;
+export type PipelineEvent =
+  | StageProgressEvent
+  | FieldUpdatedEvent
+  | PipelineFailedEvent
+  | PingEvent;

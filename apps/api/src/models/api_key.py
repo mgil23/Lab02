@@ -16,6 +16,7 @@ class ApiKey(Base, TenantScopedMixin):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
     )
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(16), nullable=False, default="")
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     scopes: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

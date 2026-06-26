@@ -3,6 +3,7 @@ import { getStoredAccessToken, useAuthStore } from "./auth";
 import type {
   Document,
   DocumentListItem,
+  PaginatedResponse,
   SubDocument,
   DocumentType,
 } from "@openidp/shared-types";
@@ -67,9 +68,9 @@ export const apiClient = {
 export async function fetchDocuments(
   tenant: string,
   params: { status?: string; page?: number; page_size?: number } = {}
-): Promise<{ items: DocumentListItem[]; total: number }> {
+): Promise<PaginatedResponse<DocumentListItem>> {
   const qs = new URLSearchParams();
-  if (params.status) qs.set("status", params.status);
+  if (params.status) qs.set("status_filter", params.status);
   if (params.page) qs.set("page", String(params.page));
   if (params.page_size) qs.set("page_size", String(params.page_size));
   return apiClient.get(`/${tenant}/documents?${qs}`);
@@ -147,8 +148,9 @@ export interface KpiData {
   processing: number;
   completed: number;
   needs_review: number;
+  failed: number;
   pages_processed_today: number;
-  avg_processing_ms: number;
+  avg_processing_ms: number | null;
 }
 
 export async function fetchKpi(tenant: string): Promise<KpiData> {

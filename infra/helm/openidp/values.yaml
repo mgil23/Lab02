@@ -81,9 +81,17 @@ web:
     limits:
       cpu: 500m
       memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
   service:
     type: ClusterIP
     port: 3000
+  env:
+    NEXT_PUBLIC_API_URL: https://openidp.example.com
+    NEXT_PUBLIC_WS_URL: wss://openidp.example.com
 
 ingress:
   enabled: true
