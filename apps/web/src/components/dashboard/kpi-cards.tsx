@@ -2,7 +2,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
 import { fetchKpi, type KpiData } from "@/lib/api";
 import { formatDuration } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export function KPICards({ tenant }: { tenant: string }) {
   if (!data) return null;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <KpiCard
         label="Total Documents"
         value={data.total_documents.toLocaleString()}
@@ -58,18 +58,23 @@ export function KPICards({ tenant }: { tenant: string }) {
         color="bg-yellow-50 text-yellow-600"
       />
       <KpiCard
-        label="Completed Today"
+        label="Pages Processed Today"
         value={data.pages_processed_today.toLocaleString()}
-        sub="pages processed"
+        sub={data.avg_processing_ms ? `Avg ${formatDuration(data.avg_processing_ms)}` : "pages processed"}
         icon={CheckCircle}
         color="bg-green-50 text-green-600"
       />
       <KpiCard
         label="Needs Review"
         value={data.needs_review}
-        sub={data.avg_processing_ms ? `Avg ${formatDuration(data.avg_processing_ms)}` : undefined}
         icon={AlertCircle}
         color="bg-orange-50 text-orange-600"
+      />
+      <KpiCard
+        label="Failed"
+        value={data.failed ?? 0}
+        icon={XCircle}
+        color="bg-red-50 text-red-600"
       />
     </div>
   );

@@ -27,7 +27,7 @@ export interface ExtractedField {
   reasoning: string | null;
   extraction_method: "rule" | "llm" | "ocr";
   validation_status: ValidationStatus;
-  validation_errors: Record<string, string[]> | null;
+  validation_errors: string[] | null;
   human_reviewed: boolean;
   human_value: string | null;
   updated_at: string;

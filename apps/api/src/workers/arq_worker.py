@@ -27,11 +27,14 @@ async def _run_pipeline_task(ctx: dict, document_id: str, tenant_id: str) -> dic
 
 async def report_usage_to_stripe(ctx: dict) -> dict:
     """Daily cron: report accumulated usage to Stripe Meter API."""
+    import logging
     from datetime import datetime, UTC, timedelta
-    from sqlalchemy import select, update
+    from sqlalchemy import select
     from ..models.usage_record import UsageRecord
+    from ..models.tenant import Tenant
     import stripe
 
+    logger = logging.getLogger(__name__)
     stripe.api_key = settings.stripe_secret_key
     since = datetime.now(UTC) - timedelta(hours=24)
 
@@ -44,21 +47,31 @@ async def report_usage_to_stripe(ctx: dict) -> dict:
         )
         records = result.scalars().all()
 
+        # Pre-load tenant stripe_customer_ids to avoid N+1 queries
+        tenant_ids = list({r.tenant_id for r in records})
+        tenants_result = await db.execute(
+            select(Tenant).where(Tenant.id.in_(tenant_ids))
+        )
+        tenant_map = {t.id: t for t in tenants_result.scalars().all()}
+
         reported = 0
         for record in records:
+            tenant = tenant_map.get(record.tenant_id)
+            if not tenant or not tenant.stripe_customer_id:
+                continue
             try:
                 stripe_event = stripe.billing.MeterEvent.create(
                     event_name=record.metric,
                     payload={
-                        "stripe_customer_id": str(record.tenant_id),
+                        "stripe_customer_id": tenant.stripe_customer_id,
                         "value": str(int(record.quantity)),
                     },
                     timestamp=int(record.recorded_at.timestamp()),
                 )
                 record.stripe_usage_record_id = stripe_event.id
                 reported += 1
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Stripe meter event failed for record %s: %s", record.id, exc)
 
         await db.commit()
 

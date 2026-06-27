@@ -119,6 +119,20 @@ async def run_pipeline(ctx: dict, document_id: str, tenant_id: str) -> dict:
                 extra={"total_ms": total_ms, "subdocument_count": len(subdocuments)},
             )
 
+            # Fire webhooks asynchronously
+            from ..services.webhook_service import WebhookService
+            webhook_svc = WebhookService(db)
+            await webhook_svc.deliver_event(
+                tenant_uuid,
+                "document.completed",
+                {
+                    "document_id": document_id,
+                    "tenant_id": tenant_id,
+                    "subdocument_count": len(subdocuments),
+                    "total_ms": total_ms,
+                },
+            )
+
         except Exception as e:
             async with tenant_context(db, tenant_uuid):
                 doc_result = await db.execute(select(Document).where(Document.id == doc_uuid))
@@ -129,6 +143,18 @@ async def run_pipeline(ctx: dict, document_id: str, tenant_id: str) -> dict:
 
             DOCUMENTS_PROCESSED_TOTAL.labels(tenant_id=tenant_id, status="failed").inc()
             await emit_progress(redis, tenant_id, document_id, "failed", "error", error=str(e))
+
+            # Fire failure webhook
+            try:
+                from ..services.webhook_service import WebhookService
+                webhook_svc = WebhookService(db)
+                await webhook_svc.deliver_event(
+                    tenant_uuid,
+                    "document.failed",
+                    {"document_id": document_id, "tenant_id": tenant_id, "error": str(e)},
+                )
+            except Exception:
+                pass
             raise
 
     return {"run_id": str(run.id), "document_id": document_id}

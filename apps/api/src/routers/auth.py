@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
-from ..dependencies import DbDep
+from ..dependencies import DbDep, CurrentUser
 from ..models.tenant import Tenant
 from ..models.user import User
 from ..schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshRequest
@@ -63,6 +63,18 @@ async def refresh(body: RefreshRequest, db: DbDep) -> TokenResponse:
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Not a refresh token")
 
+    # Check blacklist
+    jti = payload.get("jti")
+    if jti:
+        import redis.asyncio as aioredis
+        from ..config import settings
+        r = aioredis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            if await r.get(f"token_blacklist:{jti}"):
+                raise HTTPException(status_code=401, detail="Token has been revoked")
+        finally:
+            await r.aclose()
+
     import uuid
     result = await db.execute(select(User).where(User.id == uuid.UUID(payload["sub"])))
     user = result.scalar_one_or_none()
@@ -72,3 +84,28 @@ async def refresh(body: RefreshRequest, db: DbDep) -> TokenResponse:
     access = create_access_token(str(user.id), str(user.tenant_id), user.role)
     new_refresh = create_refresh_token(str(user.id), str(user.tenant_id))
     return TokenResponse(access_token=access, refresh_token=new_refresh)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(body: RefreshRequest, current_user: CurrentUser) -> None:
+    """Revoke the provided refresh token by adding its JTI to the blacklist."""
+    try:
+        payload = decode_token(body.refresh_token)
+    except ValueError:
+        return  # Already invalid — nothing to revoke
+
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti:
+        return
+
+    import time
+    import redis.asyncio as aioredis
+    from ..config import settings
+
+    ttl = max(1, int((exp or 0) - time.time())) if exp else 86400
+    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await r.setex(f"token_blacklist:{jti}", ttl, "1")
+    finally:
+        await r.aclose()

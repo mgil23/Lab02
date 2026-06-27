@@ -269,3 +269,12 @@ export async function toggleWebhook(
 export async function deleteWebhook(tenant: string, id: string): Promise<void> {
   return apiClient.delete(`/${tenant}/webhooks/${id}`);
 }
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+
+export async function logout(refreshToken: string): Promise<void> {
+  return request("/auth/logout", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+}

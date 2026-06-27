@@ -98,6 +98,16 @@ def _entity_similarity(a: str, b: str) -> float:
     return len(a_tokens & b_tokens) / len(a_tokens | b_tokens)
 
 
+def _score_document_type(text: str, hints: dict) -> float:
+    """Score subdocument text against classification_hints keywords."""
+    keywords: list[str] = hints.get("keywords", [])
+    if not keywords:
+        return 0.0
+    text_lower = text.lower()
+    matches = sum(1 for kw in keywords if kw.lower() in text_lower)
+    return matches / len(keywords)
+
+
 async def run_classify_and_split(
     ctx: dict,
     document_id: str,
@@ -125,6 +135,7 @@ async def run_classify_and_split(
     from sqlalchemy import select
     from ...models.subdocument import SubDocument
     from ...models.document import Document
+    from ...models.document_type import DocumentType
     from ...core.rls import tenant_context
     from ...services.storage_service import StorageService
     from psycopg2.extras import NumericRange
@@ -142,12 +153,21 @@ async def run_classify_and_split(
         doc = doc_result.scalar_one()
         pdf_bytes = await storage.download(doc.storage_key)
 
+        dt_result = await db.execute(
+            select(DocumentType).where(
+                DocumentType.tenant_id == tenant_uuid,
+                DocumentType.is_active == True,  # noqa: E712
+            )
+        )
+        document_types = dt_result.scalars().all()
+        doc_created_at = doc.created_at
+
     subdocuments: list[dict] = []
 
     with fitz.open(stream=pdf_bytes, filetype="pdf") as src_pdf:
         for start_page, end_page in subdoc_ranges:
             subdoc_id = uuid.uuid4()
-            subdoc_key = StorageService.subdocument_key(tenant_id, document_id, str(subdoc_id))
+            subdoc_key = StorageService.subdocument_key(tenant_id, document_id, str(subdoc_id), doc_created_at)
 
             # Extract subdocument PDF
             subdoc_pdf = fitz.open()
@@ -173,16 +193,33 @@ async def run_classify_and_split(
                 elif prev_features.layout_hash != curr_features.layout_hash:
                     split_signals["triggered_by"] = "layout_change"
 
+            # Classify subdocument against tenant's DocumentTypes
+            subdoc_text = " ".join(
+                pf.text
+                for pf in pages
+                if start_page <= pf.page_num <= end_page
+            )
+            best_dt_id = None
+            best_dt_conf = 0.0
+            for dt in document_types:
+                score = _score_document_type(subdoc_text, dt.classification_hints or {})
+                if score > best_dt_conf and score > 0.1:
+                    best_dt_conf = score
+                    best_dt_id = dt.id
+
             async with tenant_context(db, tenant_uuid):
                 from sqlalchemy.dialects.postgresql import Range
                 subdoc = SubDocument(
                     id=subdoc_id,
                     tenant_id=tenant_uuid,
                     document_id=doc_uuid,
+                    document_type_id=best_dt_id,
                     page_range=NumericRange(start_page, end_page + 1),
                     page_count=end_page - start_page + 1,
                     storage_key=subdoc_key,
                     status="pending",
+                    classification_confidence=round(best_dt_conf, 4) if best_dt_id else None,
+                    classification_model="keyword_v1",
                     split_signals=split_signals,
                 )
                 db.add(subdoc)
@@ -194,6 +231,7 @@ async def run_classify_and_split(
                 "end_page": end_page,
                 "page_count": end_page - start_page + 1,
                 "storage_key": subdoc_key,
+                "document_type_id": str(best_dt_id) if best_dt_id else None,
             })
 
     await db.commit()

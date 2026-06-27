@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PipelineEvent } from "@openidp/shared-types";
+import { getStoredAccessToken } from "@/lib/auth";
 
 type SocketCallbacks = {
   onFieldUpdated?: () => void;
@@ -29,7 +30,9 @@ export function useDocumentSocket(
   const connect = useCallback(() => {
     if (typeof window === "undefined") return;
     const wsBase = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000";
-    const url = `${wsBase}/api/v1/ws/${tenant}/${documentId}`;
+    const token = getStoredAccessToken();
+    const params = token ? `?token=${encodeURIComponent(token)}` : "";
+    const url = `${wsBase}/api/v1/ws/${tenant}/${documentId}${params}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from __future__ import annotations
+
 import io
+from datetime import datetime
 from miniopy_async import Minio
 from ..config import settings
 
@@ -44,19 +47,19 @@ class StorageService:
         await self._client.remove_object(self._bucket, key)
 
     @staticmethod
-    def document_key(tenant_id: str, doc_id: str) -> str:
+    def document_key(tenant_id: str, doc_id: str, created_at: datetime | None = None) -> str:
         from datetime import datetime, UTC
-        now = datetime.now(UTC)
+        now = created_at or datetime.now(UTC)
         return f"{tenant_id}/{now.year}/{now.month:02d}/{doc_id}/original.pdf"
 
     @staticmethod
-    def thumbnail_key(tenant_id: str, doc_id: str, page: int) -> str:
+    def thumbnail_key(tenant_id: str, doc_id: str, page: int, created_at: datetime | None = None) -> str:
         from datetime import datetime, UTC
-        now = datetime.now(UTC)
+        now = created_at or datetime.now(UTC)
         return f"{tenant_id}/{now.year}/{now.month:02d}/{doc_id}/thumbs/page_{page:04d}.webp"
 
     @staticmethod
-    def subdocument_key(tenant_id: str, doc_id: str, subdoc_id: str) -> str:
+    def subdocument_key(tenant_id: str, doc_id: str, subdoc_id: str, created_at: datetime | None = None) -> str:
         from datetime import datetime, UTC
-        now = datetime.now(UTC)
+        now = created_at or datetime.now(UTC)
         return f"{tenant_id}/{now.year}/{now.month:02d}/{doc_id}/subdocs/{subdoc_id}.pdf"

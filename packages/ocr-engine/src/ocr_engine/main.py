@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from .service import OcrService
 
@@ -31,11 +31,12 @@ async def ocr_pages(body: OcrRequest) -> OcrResponse:
 
 
 @app.post("/structure/layout")
-async def layout_analysis(request: bytes = b"") -> dict:
-    """Accepts raw image bytes (multipart or raw body), returns layout blocks."""
-    if not request:
+async def layout_analysis(request: Request) -> dict:
+    """Accepts raw image bytes in the request body, returns layout blocks."""
+    body = await request.body()
+    if not body:
         raise HTTPException(status_code=400, detail="No image data")
-    return await _svc.layout_page(request)
+    return await _svc.layout_page(body)
 
 
 @app.get("/health")

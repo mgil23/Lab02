@@ -27,7 +27,7 @@ class ExtractedFieldRead(BaseModel):
     reasoning: str | None
     extraction_method: str
     validation_status: str
-    validation_errors: dict | None
+    validation_errors: list[str] | None
     human_reviewed: bool
     human_value: str | None
     updated_at: datetime

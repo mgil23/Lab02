@@ -34,6 +34,7 @@ def create_access_token(
         "role": role,
         "exp": expire,
         "type": "access",
+        "jti": secrets.token_hex(16),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
@@ -45,6 +46,7 @@ def create_refresh_token(subject: str, tenant_id: str) -> str:
         "tenant_id": tenant_id,
         "exp": expire,
         "type": "refresh",
+        "jti": secrets.token_hex(16),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 

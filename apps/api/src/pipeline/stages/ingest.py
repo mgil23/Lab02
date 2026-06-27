@@ -43,7 +43,7 @@ async def run_ingest(ctx: dict, document_id: str, tenant_id: str) -> dict:
             pix = page.get_pixmap(matrix=mat, clip=clip)
             thumb_bytes = pix.tobytes("webp")
 
-            thumb_key = StorageService.thumbnail_key(tenant_id, document_id, page_num + 1)
+            thumb_key = StorageService.thumbnail_key(tenant_id, document_id, page_num + 1, doc.created_at)
             await storage.upload(thumb_key, thumb_bytes, "image/webp")
 
             page_data[page_num + 1] = {

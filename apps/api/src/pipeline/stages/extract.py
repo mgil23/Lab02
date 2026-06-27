@@ -73,8 +73,8 @@ async def run_extract(
 
     # Build full text from OCR pages
     pages = ocr_result.get("pages", {})
-    full_text = "\n\n--- PAGE {} ---\n".join(
-        pages[p]["text"] for p in sorted(pages.keys())
+    full_text = "\n\n".join(
+        f"--- PAGE {p} ---\n{pages[p]['text']}" for p in sorted(pages.keys())
     ) if pages else ""
     layout = {"blocks": [
         block
@@ -97,12 +97,28 @@ async def run_extract(
         # Fallback without Strands
         extraction_result = _fallback_extract(full_text, dt_config)
 
+    # Run deterministic validation rules
+    from ...services.validation_service import ValidationService
+    field_values = {
+        name: str(data.get("value", "")) if isinstance(data, dict) else None
+        for name, data in extraction_result.items()
+    }
+    validation_results = ValidationService().validate(
+        field_values,
+        dt_config.get("validation_rules", []),
+    )
+
     # Persist extracted fields
     token_count = 0
     async with tenant_context(db, tenant_uuid):
         for field_name, field_data in extraction_result.items():
             if not isinstance(field_data, dict):
                 continue
+
+            vr = validation_results.get(field_name, {"status": "valid", "errors": []})
+            llm_status = _determine_validation_status(field_data)
+            # Use stricter of LLM-confidence status vs rule-based status
+            combined_status = "flagged" if vr["status"] == "flagged" or llm_status == "flagged" else llm_status
 
             field = ExtractedField(
                 tenant_id=tenant_uuid,
@@ -115,7 +131,8 @@ async def run_extract(
                 source_text=field_data.get("source_text"),
                 reasoning=field_data.get("reasoning"),
                 extraction_method="llm",
-                validation_status=_determine_validation_status(field_data),
+                validation_status=combined_status,
+                validation_errors=vr["errors"] if vr["errors"] else None,
             )
             db.add(field)
             token_count += len(str(field_data.get("source_text", ""))) // 4

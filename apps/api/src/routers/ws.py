@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import asyncio
 import json
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, WebSocketException, status
 import redis.asyncio as aioredis
 from ..config import settings
+from ..core.security import decode_token
 
 router = APIRouter(tags=["websocket"])
 
@@ -13,7 +14,24 @@ async def websocket_pipeline_events(
     websocket: WebSocket,
     tenant_id: str,
     document_id: str,
+    token: str | None = None,
 ) -> None:
+    # Authenticate before accepting
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    try:
+        payload = decode_token(token)
+    except ValueError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # Ensure the token's tenant matches the requested tenant_id
+    if payload.get("tenant_id") != tenant_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     channel = f"pipeline:{tenant_id}:{document_id}"
@@ -26,7 +44,6 @@ async def websocket_pipeline_events(
                 if message and message["type"] == "message":
                     await websocket.send_text(message["data"])
                 else:
-                    # Send keepalive ping
                     await websocket.send_json({"type": "ping"})
         except WebSocketDisconnect:
             pass

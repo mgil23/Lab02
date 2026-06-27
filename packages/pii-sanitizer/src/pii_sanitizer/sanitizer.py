@@ -4,11 +4,14 @@ PII Sanitizer using Microsoft Presidio.
 Provides reversible anonymization: sanitize() → (anonymized_text, token_map)
 Calling restore() recovers the original PII values in extracted results.
 """
+import logging
 import os
 import re
 import secrets
 from typing import Any
 from .reversible_map import generate_token
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_PII_ENTITIES = [
     "PERSON",
@@ -76,7 +79,8 @@ class PiiSanitizer:
                 language=self._language,
                 score_threshold=self._min_score,
             )
-        except Exception:
+        except Exception as e:
+            logger.warning("PII analysis failed, returning unsanitized text: %s", e)
             return text, {}
 
         if not results:

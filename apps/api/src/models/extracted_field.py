@@ -29,7 +29,7 @@ class ExtractedField(Base, TimestampMixin, TenantScopedMixin):
     reasoning: Mapped[str | None] = mapped_column(Text)
     extraction_method: Mapped[str] = mapped_column(String(50), default="llm", nullable=False)
     validation_status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
-    validation_errors: Mapped[dict | None] = mapped_column(JSON)
+    validation_errors: Mapped[list | None] = mapped_column(JSON)
     human_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     human_value: Mapped[str | None] = mapped_column(Text)
 
