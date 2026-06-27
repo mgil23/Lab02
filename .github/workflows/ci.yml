@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Python / API ────────────────────────────────────────────────────────────
+  python-lint:
+    name: Python Lint (ruff + mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Install dependencies
+        working-directory: apps/api
+        run: uv sync
+      - name: Ruff lint
+        working-directory: apps/api
+        run: uv run ruff check src/
+      - name: Ruff format check
+        working-directory: apps/api
+        run: uv run ruff format --check src/
+      - name: Mypy type check
+        working-directory: apps/api
+        run: uv run mypy src/ --ignore-missing-imports
+
+  python-test:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: openidp_test
+          POSTGRES_USER: openidp
+          POSTGRES_PASSWORD: testpassword
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql+asyncpg://openidp:testpassword@localhost/openidp_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: test-secret-min-32-characters-long
+      ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install dependencies
+        working-directory: apps/api
+        run: uv sync
+      - name: Run migrations
+        working-directory: apps/api
+        run: uv run alembic upgrade head
+      - name: Run tests
+        working-directory: apps/api
+        run: uv run pytest tests/ -v --tb=short
+
+  # ── TypeScript / Web ────────────────────────────────────────────────────────
+  ts-lint:
+    name: TypeScript Lint + Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: ESLint
+        run: pnpm --filter @openidp/web lint
+      - name: TypeScript check
+        run: pnpm --filter @openidp/web typecheck
+
+  # ── Docker Build ────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { context: apps/api, name: openidp-api }
+          - { context: apps/web, name: openidp-web }
+          - { context: packages/ocr-engine, name: openidp-ocr-engine, target: cpu }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          target: ${{ matrix.service.target || 'production' }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

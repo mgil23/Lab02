@@ -1,0 +1,70 @@
+[project]
+name = "openidp-api"
+version = "1.0.0"
+description = "OpenIDP SaaS — FastAPI backend"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+
+dependencies = [
+    # Web framework
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    # Database
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14.0",
+    "asyncpg>=0.30.0",
+    "psycopg2-binary>=2.9.10",
+    # Validation
+    "pydantic[email]>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    # Queue / Cache
+    "arq>=0.26.1",
+    "redis[hiredis]>=5.2.0",
+    # Storage
+    "miniopy-async>=1.21.0",
+    # Auth
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    # PDF processing
+    "pymupdf>=1.24.14",
+    # PII
+    "presidio-analyzer>=2.2.356",
+    "presidio-anonymizer>=2.2.356",
+    # Billing
+    "stripe>=11.1.0",
+    # HTTP client
+    "httpx>=0.28.0",
+    # Telemetry
+    "opentelemetry-sdk>=1.29.0",
+    "opentelemetry-exporter-otlp>=1.29.0",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    "opentelemetry-instrumentation-redis>=0.50b0",
+    "prometheus-client>=0.21.0",
+    # Templating
+    "jinja2>=3.1.4",
+    # Utilities
+    "python-dateutil>=2.9.0",
+    "structlog>=24.4.0",
+]
+
+[project.optional-dependencies]
+strands = [
+    "strands-agents>=0.1.0",
+    "boto3>=1.35.0",
+]
+litellm = [
+    "litellm>=1.56.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

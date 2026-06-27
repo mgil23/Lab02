@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Production overrides — use with:
+#   helm install openidp ./infra/helm/openidp -f infra/helm/openidp/values.production.yaml
+
+api:
+  replicaCount: 3
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 20
+
+worker:
+  replicaCount: 5
+  autoscaling:
+    minReplicas: 5
+    maxReplicas: 50
+
+ocrEngine:
+  replicaCount: 3
+  image:
+    target: gpu
+  gpu:
+    enabled: true
+    nodeSelector:
+      accelerator: nvidia-tesla-t4
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+postgresql:
+  external:
+    enabled: true
+    host: "${RDS_ENDPOINT}"
+    port: 5432
+    database: openidp
+    secretName: openidp-db-credentials
+  internal:
+    enabled: false
+
+redis:
+  external:
+    enabled: true
+    host: "${ELASTICACHE_ENDPOINT}"
+    port: 6379
+    secretName: openidp-redis-credentials
+  internal:
+    enabled: false
+
+minio:
+  external:
+    enabled: true
+    endpoint: "s3.amazonaws.com"
+    secretName: openidp-s3-credentials
+  internal:
+    enabled: false
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
